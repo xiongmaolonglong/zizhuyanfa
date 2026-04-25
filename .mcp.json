@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/var/www/ad-workflow"
+      ]
+    },
+    "mysql": {
+      "command": "npx",
+      "args": ["-y", "@f4ww4z/mcp-mysql-server"],
+      "env": {
+        "MYSQL_HOST": "localhost",
+        "MYSQL_PORT": "3306",
+        "MYSQL_DATABASE": "ad_workflow",
+        "MYSQL_USER": "ad_workflow_user",
+        "MYSQL_PASSWORD": "anmB3wyIDDTSA6qRSbK0"
+      }
+    }
+  }
+}

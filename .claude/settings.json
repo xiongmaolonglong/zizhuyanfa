@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-and-lint.sh",
+            "statusMessage": "Formatting and linting..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/prevent-large-writes.sh",
+            "statusMessage": "Checking file size..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Hook] Session ended. All frontend builds and backend reloads have been auto-triggered on each edit.'"
+          }
+        ]
+      }
+    ]
+  }
+}

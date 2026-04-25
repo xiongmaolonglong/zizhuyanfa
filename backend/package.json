@@ -1,0 +1,44 @@
+{
+  "name": "ad-workflow-backend",
+  "version": "0.1.0",
+  "description": "广告工程全流程管理系统后端",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "start": "node src/app.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "cross-env JWT_SECRET=test-secret-key-for-jest-only-cross-verify JWT_EXPIRES_IN=7d jest --runInBand --forceExit",
+    "test:watch": "jest --watch",
+    "check": "npm run lint && npm test",
+    "db:migrate": "npx sequelize-cli db:migrate",
+    "db:seed": "npx sequelize-cli db:seed:all",
+    "db:reset": "npx sequelize-cli db:drop && npx sequelize-cli db:create && npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all"
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "cos-nodejs-sdk-v5": "^2.15.4",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.6.0",
+    "sequelize": "^6.35.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.2.0",
+    "globals": "^17.5.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "sequelize-cli": "^6.6.2",
+    "supertest": "^6.3.3"
+  }
+}

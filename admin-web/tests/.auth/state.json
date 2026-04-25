@@ -1,0 +1,18 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VyX3R5cGUiOiJ0ZW5hbnQiLCJ0ZW5hbnRfaWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NjM0NzMwNCwiZXhwIjoxNzc2OTUyMTA0fQ.izjSbpdms8KzEai5eh5mlSTeNwSg4puSjZu15mAd89I"
+        },
+        {
+          "name": "user",
+          "value": "{\"id\":1,\"tenant_id\":1,\"name\":\"张管理\",\"phone\":\"13800000001\",\"wechat_openid\":null,\"email\":null,\"real_name\":null,\"role\":\"admin\",\"department_id\":1,\"status\":\"active\"}"
+        }
+      ]
+    }
+  ]
+}
