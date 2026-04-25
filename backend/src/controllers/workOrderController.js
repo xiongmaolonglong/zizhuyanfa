@@ -316,7 +316,7 @@ async function listWorkOrders(req, res) {
 
   const [declarations, assignments, measurements, designs, constructions, finances] = await Promise.all([
     WoDeclaration.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'project_type', 'full_address', 'contact_name', 'contact_phone'], raw: true }),
-    WoAssignment.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'assignee_id'], include: [{ model: TenantUser, as: 'assignee', attributes: ['id', 'name'] }], raw: true, nest: true }),
+    WoAssignment.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'assigned_to'], include: [{ model: TenantUser, as: 'assignee', attributes: ['id', 'name'] }], raw: true, nest: true }),
     WoMeasurement.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'id', 'measurer_id', 'materials', 'face_name', 'width', 'height', 'area', 'depth', 'photos', 'notes', 'status', 'measured_at', 'is_proxy'], include: [{ model: TenantUser, as: 'measurer', attributes: ['id', 'name'] }], raw: true, nest: true, order: [['created_at', 'DESC']] }),
     WoDesign.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'id', 'version', 'status'], raw: true }),
     WoConstruction.findAll({ where: { work_order_id: woIds }, attributes: ['work_order_id', 'id', 'constructor_id', 'status'], include: [{ model: TenantUser, as: 'constructor', attributes: ['id', 'name'] }], raw: true, nest: true }),
