@@ -44,10 +44,13 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
     val newNotification: SharedFlow<PushNotification> = _newNotification.asSharedFlow()
 
     private var reconnectAttempts = 0
+    private var reconnectRunnable: Runnable? = null
+    private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
         private const val TAG = "WebSocketManager"
+        private const val MAX_RECONNECT_ATTEMPTS = 15
     }
 
     fun connect() {
@@ -64,6 +67,19 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                 return@launch
             }
 
+            // 已有活跃连接，跳过
+            if (socket?.connected() == true) {
+                Log.i(TAG, "WebSocket already connected, skip")
+                return@launch
+            }
+
+            // 创建新 socket 前先断开旧的
+            disconnect()
+
+            // 取消之前调度的重连任务
+            reconnectRunnable?.let { handler.removeCallbacks(it) }
+            reconnectRunnable = null
+
             // 使用服务端配置的 URL（HTTPS 复用 HTTP 端口）
             val baseUrl = "https://www.fsbhgg.com"
             Log.i(TAG, "Connecting to $baseUrl with auth token")
@@ -73,6 +89,8 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                 val opts = IO.Options.builder()
                     .setAuth(mapOf("token" to token))
                     .setTransports(arrayOf("websocket"))
+                    .setTimeout(10000L)
+                    .setPingInterval(25000L)
                     .build()
 
                 socket = IO.socket(baseUrl, opts)
@@ -128,25 +146,36 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
 
     fun disconnect() {
         Log.i(TAG, "Disconnecting WebSocket")
-        socket?.disconnect()
-        socket?.close()
+        // 取消所有待调度的重连
+        reconnectRunnable?.let { handler.removeCallbacks(it) }
+        reconnectRunnable = null
+        reconnectAttempts = 0
+
         socket?.off()
+        socket?.disconnect()
         socket = null
         _isConnected.value = false
     }
 
     private fun scheduleReconnect() {
-        val delay = minOf(1000L * (1L shl reconnectAttempts), 30000L)
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            Log.w(TAG, "Max reconnect attempts reached, giving up")
+            return
+        }
+        val delay = minOf(1000L * (1L shl reconnectAttempts.coerceAtMost(14)), 30000L)
         reconnectAttempts++
         Log.i(TAG, "Scheduling reconnect in ${delay}ms (attempt $reconnectAttempts)")
-        Handler(Looper.getMainLooper()).postDelayed({
+        reconnectRunnable = Runnable {
             if (!_isConnected.value) connect()
-        }, delay)
+        }
+        handler.postDelayed(reconnectRunnable!!, delay)
     }
 
-    fun clearUnread() { _unreadCount.value = 0 }
+    fun clearUnread() { _unreadCount.update { 0 } }
 
     fun destroy() {
+        reconnectRunnable?.let { handler.removeCallbacks(it) }
+        reconnectRunnable = null
         scope.cancel()
         disconnect()
     }
