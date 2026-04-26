@@ -1,0 +1,153 @@
+package com.banghe.measure.core.websocket
+
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import com.banghe.measure.core.storage.PreferencesStore
+import io.socket.client.IO
+import io.socket.client.Socket
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+
+/**
+ * 通知数据类
+ */
+data class PushNotification(
+    val id: Int,
+    val title: String,
+    val content: String?,
+    val type: String?,
+    val workOrderId: Int?,
+    val ts: Long?
+)
+
+class WebSocketManager(private val preferencesStore: PreferencesStore) {
+    private var socket: Socket? = null
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+
+    private val _newNotification = MutableSharedFlow<PushNotification>(extraBufferCapacity = 1)
+    val newNotification: SharedFlow<PushNotification> = _newNotification.asSharedFlow()
+
+    private var reconnectAttempts = 0
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    companion object {
+        private const val TAG = "WebSocketManager"
+    }
+
+    fun connect() {
+        val token = preferencesStore.getTokenBlocking()
+        if (token.isNullOrEmpty()) {
+            Log.w(TAG, "No token available, skip WebSocket connection")
+            return
+        }
+
+        scope.launch {
+            val notificationEnabled = preferencesStore.getNotificationEnabled()
+            if (!notificationEnabled) {
+                Log.w(TAG, "Notification disabled, skip WebSocket connection")
+                return@launch
+            }
+
+            // 使用服务端配置的 URL（HTTPS 复用 HTTP 端口）
+            val baseUrl = "https://www.fsbhgg.com"
+            Log.i(TAG, "Connecting to $baseUrl with auth token")
+
+            try {
+                // 按服务端文档使用 IO.Options.builder()
+                val opts = IO.Options.builder()
+                    .setAuth(mapOf("token" to token))
+                    .setTransports(arrayOf("websocket"))
+                    .build()
+
+                socket = IO.socket(baseUrl, opts)
+
+                socket?.on(Socket.EVENT_CONNECT) {
+                    Log.i(TAG, "WebSocket connected successfully")
+                    _isConnected.value = true
+                    reconnectAttempts = 0
+                }
+
+                socket?.on(Socket.EVENT_DISCONNECT) { args ->
+                    Log.w(TAG, "WebSocket disconnected: ${args.firstOrNull()}")
+                    _isConnected.value = false
+                    scheduleReconnect()
+                }
+
+                socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
+                    Log.e(TAG, "WebSocket connect error: ${args.firstOrNull()}")
+                    _isConnected.value = false
+                    scheduleReconnect()
+                }
+
+                // 监听 notification 事件（服务端推送的通知）
+                socket?.on("notification") { args ->
+                    Log.i(TAG, "Received notification event: ${args.firstOrNull()}")
+                    val data = args.firstOrNull()
+                    if (data != null) {
+                        try {
+                            val json = if (data is JSONObject) data else JSONObject(data.toString())
+                            val notification = PushNotification(
+                                id = json.optInt("id", 0),
+                                title = json.optString("title", "新通知"),
+                                content = json.optString("content", null),
+                                type = json.optString("type", null),
+                                workOrderId = json.optInt("work_order_id", 0).takeIf { it > 0 },
+                                ts = json.optLong("ts", 0).takeIf { it > 0 }
+                            )
+                            Log.i(TAG, "Parsed notification: $notification")
+                            _newNotification.tryEmit(notification)
+                            _unreadCount.update { it + 1 }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse notification: ${e.message}")
+                        }
+                    }
+                }
+
+                socket?.connect()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create socket: ${e.message}")
+            }
+        }
+    }
+
+    fun disconnect() {
+        Log.i(TAG, "Disconnecting WebSocket")
+        socket?.disconnect()
+        socket?.close()
+        socket?.off()
+        socket = null
+        _isConnected.value = false
+    }
+
+    private fun scheduleReconnect() {
+        val delay = minOf(1000L * (1L shl reconnectAttempts), 30000L)
+        reconnectAttempts++
+        Log.i(TAG, "Scheduling reconnect in ${delay}ms (attempt $reconnectAttempts)")
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!_isConnected.value) connect()
+        }, delay)
+    }
+
+    fun clearUnread() { _unreadCount.value = 0 }
+
+    fun destroy() {
+        scope.cancel()
+        disconnect()
+    }
+}
