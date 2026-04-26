@@ -63,11 +63,23 @@ class PendingWorkViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // 并行加载各阶段待处理任务
-            val approval = loadTasksByStage("approval")
-            val assignment = loadTasksByStage("assignment")
-            val measurement = loadTasksByStage("measurement")
-            val construction = loadTasksByStage("construction")
+            val role = App.instance.preferencesStore.getUserRole()
+            val userId = App.instance.preferencesStore.getUserId()
+
+            // 测量员/施工员只看自己的任务，管理员看全部
+            val assignedTo = if (role == "measurer" || role == "constructor") userId else null
+
+            // 管理员才加载待审批和待派工
+            val approval = if (role == "admin" || role == "super_admin") {
+                loadTasksByStage("approval", assignedTo)
+            } else emptyList()
+
+            val assignment = if (role == "admin" || role == "super_admin") {
+                loadTasksByStage("assignment", assignedTo)
+            } else emptyList()
+
+            val measurement = loadTasksByStage("measurement", assignedTo)
+            val construction = loadTasksByStage("construction", assignedTo)
 
             val groups = mutableListOf<PendingGroup>()
             if (approval.isNotEmpty()) {
@@ -98,9 +110,9 @@ class PendingWorkViewModel : ViewModel() {
         }
     }
 
-    private suspend fun loadTasksByStage(stage: String): List<WorkOrder> {
+    private suspend fun loadTasksByStage(stage: String, assignedTo: Int?): List<WorkOrder> {
         return withTimeoutOrNull(10000) {
-            App.instance.taskRepository.getTasks(stage = stage, limit = 50).getOrNull() ?: emptyList()
+            App.instance.taskRepository.getTasks(stage = stage, assignedTo = assignedTo, limit = 50).getOrNull() ?: emptyList()
         } ?: emptyList()
     }
 

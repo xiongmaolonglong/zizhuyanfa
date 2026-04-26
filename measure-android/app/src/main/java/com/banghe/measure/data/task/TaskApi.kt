@@ -15,6 +15,7 @@ interface TaskApi {
         @Query("status") status: String? = null,
         @Query("stage") stage: String? = null,
         @Query("keyword") keyword: String? = null,
+        @Query("assigned_to") assignedTo: Int? = null,
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20
     ): PaginatedResponse<WorkOrderResponse>
@@ -57,7 +58,9 @@ data class WorkOrderResponse(
     val created_at: String?,
     val client: ClientInfo?,
     val WoDeclaration: DeclarationInfo?,
-    val creator_name: String? = null
+    val creator_name: String? = null,
+    val assigned_at: String? = null,
+    val measurement_status: String? = null
 )
 
 data class WorkOrderDetailResponse(
@@ -175,7 +178,9 @@ fun WorkOrderResponse.toDomain(): WorkOrder {
         priority = priority,
         deadline = deadline,
         createdAt = created_at,
-        creatorName = creator_name
+        creatorName = creator_name,
+        assignedAt = assigned_at,
+        measurementStatus = measurement_status
     )
 }
 

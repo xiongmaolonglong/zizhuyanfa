@@ -18,5 +18,6 @@ data class WorkOrderEntity(
     @ColumnInfo(name = "status") val status: String,
     @ColumnInfo(name = "current_stage") val currentStage: String,
     @ColumnInfo(name = "priority") val priority: String?,
+    @ColumnInfo(name = "assigned_to_user_id") val assignedToUserId: Int?,
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

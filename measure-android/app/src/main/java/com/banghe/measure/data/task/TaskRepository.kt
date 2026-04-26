@@ -18,6 +18,7 @@ class TaskRepository(
         status: String? = null,
         stage: String? = null,
         keyword: String? = null,
+        assignedTo: Int? = null,
         page: Int = 1,
         limit: Int = 20
     ): Result<List<WorkOrder>> = safeCall {
@@ -25,21 +26,27 @@ class TaskRepository(
             status = status,
             stage = stage,
             keyword = keyword,
+            assignedTo = assignedTo,
             page = page,
             limit = limit
         )
         if (response.code == 0 && response.data != null) {
             val orders = response.data.map { it.toDomain() }
-            // Cache to local DB
-            dao.insertAll(orders.map { it.toEntity() })
+            // 缓存到本地 DB，带上 assignedTo 信息
+            dao.insertAll(orders.map { it.toEntity(assignedTo) })
             orders
         } else {
             throw Exception(response.message ?: "获取任务失败")
         }
     }
 
-    suspend fun getTasksFromCache(): List<WorkOrder> {
-        return dao.getAll().map { it.toDomain() }
+    suspend fun getTasksFromCache(assignedTo: Int? = null): List<WorkOrder> {
+        val entities = if (assignedTo != null) {
+            dao.getByAssignedTo(assignedTo)
+        } else {
+            dao.getAll()
+        }
+        return entities.map { it.toDomain() }
     }
 
     suspend fun getTaskDetail(id: Int): Result<WorkOrder> = safeCall {
@@ -94,7 +101,7 @@ class TaskRepository(
     }
 }
 
-private fun WorkOrder.toEntity() = com.banghe.measure.core.database.WorkOrderEntity(
+private fun WorkOrder.toEntity(assignedToUserId: Int? = null) = com.banghe.measure.core.database.WorkOrderEntity(
     id = id,
     workOrderNo = workOrderNo,
     title = title,
@@ -106,7 +113,8 @@ private fun WorkOrder.toEntity() = com.banghe.measure.core.database.WorkOrderEnt
     deadline = deadline,
     status = status,
     currentStage = currentStage,
-    priority = priority
+    priority = priority,
+    assignedToUserId = assignedToUserId
 )
 
 private fun com.banghe.measure.core.database.WorkOrderEntity.toDomain() = WorkOrder(

@@ -84,11 +84,18 @@ class TaskListViewModel : ViewModel() {
                 val keywordParam = currentSearch.takeIf { it.isNotBlank() }
                 val stageParam = _uiState.value.taskType.stage
 
+                val role = App.instance.preferencesStore.getUserRole()
+                val userId = App.instance.preferencesStore.getUserId()
+
+                // 测量员/施工员只看自己的任务
+                val assignedParam = if (role == "measurer" || role == "constructor") userId else null
+
                 val result = withTimeoutOrNull(5000) {
                     repository.getTasks(
                         status = statusParam,
                         stage = stageParam,
                         keyword = keywordParam,
+                        assignedTo = assignedParam,
                         page = page
                     )
                 }
