@@ -40,7 +40,10 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
 
-    private val _newNotification = MutableSharedFlow<PushNotification>(extraBufferCapacity = 1)
+    private val _newNotification = MutableSharedFlow<PushNotification>(
+        extraBufferCapacity = 5,
+        onBufferOverflow = kotlinx.coroutines.flow.BufferOverflow.DROP_OLDEST
+    )
     val newNotification: SharedFlow<PushNotification> = _newNotification.asSharedFlow()
 
     private var reconnectAttempts = 0
@@ -61,6 +64,7 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
         }
 
         scope.launch {
+            // 确保通知设置已启用
             val notificationEnabled = preferencesStore.getNotificationEnabled()
             if (!notificationEnabled) {
                 Log.w(TAG, "Notification disabled, skip WebSocket connection")
@@ -90,7 +94,6 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                     .setAuth(mapOf("token" to token))
                     .setTransports(arrayOf("websocket"))
                     .setTimeout(10000L)
-                    .setPingInterval(25000L)
                     .build()
 
                 socket = IO.socket(baseUrl, opts)
@@ -129,7 +132,9 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                                 ts = json.optLong("ts", 0).takeIf { it > 0 }
                             )
                             Log.i(TAG, "Parsed notification: $notification")
-                            _newNotification.tryEmit(notification)
+                            scope.launch {
+                                _newNotification.emit(notification)
+                            }
                             _unreadCount.update { it + 1 }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to parse notification: ${e.message}")
@@ -140,6 +145,7 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                 socket?.connect()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create socket: ${e.message}")
+                scheduleReconnect()
             }
         }
     }
