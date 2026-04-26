@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize')
 const sequelize = require('../config/database')
+const socketService = require('../services/socketService')
 
 module.exports = sequelize.define('Notification', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -17,4 +18,20 @@ module.exports = sequelize.define('Notification', {
   paranoid: true,
   freezeTableName: true,
   charset: 'utf8mb4',
+  hooks: {
+    afterCreate: async (notification) => {
+      try {
+        socketService.emitToUser(notification.user_type, notification.user_id, 'new', {
+          id: notification.id,
+          title: notification.title,
+          content: notification.content,
+          type: notification.type,
+          work_order_id: notification.work_order_id,
+        })
+      } catch (err) {
+        // Socket.IO push failure should not break notification creation
+        console.error('[Notification] Socket push failed:', err.message)
+      }
+    },
+  },
 })

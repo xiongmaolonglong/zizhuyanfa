@@ -7,10 +7,13 @@ const morgan = require('morgan')
 const rateLimit = require('express-rate-limit')
 const path = require('path')
 const fs = require('fs')
+const http = require('http')
 const sequelize = require('./config/database')
 const errorHandler = require('./middleware/errorHandler')
+const socketService = require('./services/socketService')
 
 const app = express()
+const server = http.createServer(app)
 
 // 安全头
 app.use(helmet())
@@ -118,7 +121,11 @@ async function start() {
     console.log('Database connected')
     await sequelize.sync({ alter: false })
     console.log('Database synced')
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+
+    // Initialize Socket.IO for real-time notifications
+    socketService.init(server)
+
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`))
   } catch (err) {
     console.error('Failed to start:', err)
     process.exit(1)
@@ -126,4 +133,5 @@ async function start() {
 }
 
 module.exports = app
+module.exports.server = server
 if (require.main === module) start()

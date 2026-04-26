@@ -19,6 +19,7 @@ const aftersaleRoutes = require('./aftersale')
 const adminRoutes = require('./admin')
 const notificationRoutes = require('./notification')
 const wechatRoutes = require('./wechat')
+const sseRoutes = require('./sse')
 
 // Health check
 router.use('/health', (req, res) => res.json({ status: 'ok' }))
@@ -90,6 +91,9 @@ router.use('/warehouse', require('./warehouse'))
 
 // Notification routes -> /api/v1/notifications/*
 router.use('/notifications', notificationRoutes)
+
+// SSE stream -> /api/v1/sse/*
+router.use('/sse', sseRoutes)
 
 // WeChat routes -> /api/v1/wechat/*
 router.use('/wechat', wechatRoutes)
