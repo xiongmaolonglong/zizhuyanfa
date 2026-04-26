@@ -1,8 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build output (子项目的 dist 需要提交，不在此排除)
 build/
 
 # Environment files
@@ -42,3 +41,9 @@ test-results/
 *-final.png
 test-photo.jpg
 test-declaration.cjs
+
+# Android build files
+measure-android/.gradle/
+measure-android/build/
+measure-android/local.properties
+measure-android/captures/
