@@ -94,6 +94,7 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
                     .setAuth(mapOf("token" to token))
                     .setTransports(arrayOf("websocket"))
                     .setTimeout(10000L)
+                    .setReconnection(false)
                     .build()
 
                 socket = IO.socket(baseUrl, opts)
@@ -164,13 +165,14 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
     }
 
     private fun scheduleReconnect() {
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            Log.w(TAG, "Max reconnect attempts reached, giving up")
-            return
+        // 达到上限后，每 5 分钟重试一次，不再放弃
+        val delay = if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            reconnectAttempts = 0
+            300000L
+        } else {
+            minOf(1000L * (1L shl reconnectAttempts.coerceAtMost(14)), 30000L).also { reconnectAttempts++ }
         }
-        val delay = minOf(1000L * (1L shl reconnectAttempts.coerceAtMost(14)), 30000L)
-        reconnectAttempts++
-        Log.i(TAG, "Scheduling reconnect in ${delay}ms (attempt $reconnectAttempts)")
+        Log.i(TAG, "Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts.takeIf { it > 0 } ?: "periodic"})")
         reconnectRunnable = Runnable {
             if (!_isConnected.value) connect()
         }

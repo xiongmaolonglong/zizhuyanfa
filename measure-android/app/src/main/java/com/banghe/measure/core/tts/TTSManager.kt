@@ -54,11 +54,16 @@ class TTSManager(private val context: Context) {
     }
 
     private fun flushPending() {
-        handler.post {
-            while (pendingQueue.isNotEmpty()) {
-                pendingQueue.poll()?.let { doSpeak(it) }
+        // 按 throttleMs 间隔逐个播报，避免节流丢弃
+        handler.post(object : Runnable {
+            override fun run() {
+                val item = pendingQueue.poll() ?: return
+                doSpeak(item)
+                if (pendingQueue.isNotEmpty()) {
+                    handler.postDelayed(this, throttleMs)
+                }
             }
-        }
+        })
     }
 
     /**

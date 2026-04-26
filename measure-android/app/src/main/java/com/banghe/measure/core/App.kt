@@ -82,6 +82,7 @@ class App : Application() {
         webSocketManager.connect()
 
         // WebSocket 收到通知时触发语音播报
+        // WebSocket 收到通知时触发语音播报
         appScope.launch {
             webSocketManager.newNotification.collect { notification ->
                 val voiceEnabled = preferencesStore.getVoiceEnabled()
@@ -89,6 +90,17 @@ class App : Application() {
                     // 播报具体通知内容
                     val message = notification.content ?: notification.title
                     ttsManager.speak(message)
+                }
+            }
+        }
+
+        // 网络恢复时自动重连 WebSocket
+        appScope.launch {
+            connectivityObserver.state.collect { state ->
+                if (state is com.banghe.measure.core.network.ConnectionState.Available) {
+                    if (!webSocketManager.isConnected.value) {
+                        webSocketManager.connect()
+                    }
                 }
             }
         }
