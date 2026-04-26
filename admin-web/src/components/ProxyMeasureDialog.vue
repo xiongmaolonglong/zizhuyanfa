@@ -732,19 +732,35 @@ function handleClose() {
   resetForm()
 }
 
-// 监听弹窗打开，加载已有数据
-watch(visible, (val) => {
-  if (val && formConfigLoaded.value && isEditMode.value) {
-    populateFromExistingData()
+// 监听弹窗打开，每次打开都重新加载模板确保使用最新配置
+async function onVisibleChange(val) {
+  if (!val) return
+  // 重新加载项目模板（用户可能在设置页刚修改过）
+  formConfigLoading.value = true
+  try {
+    const res = await api.get('/tenant/settings/project-templates')
+    if (res.code === 0 && res.data) {
+      const oldTemplateIds = projectTemplates.value.map(t => t.id)
+      projectTemplates.value = res.data.templates || []
+      // 如果当前选中的模板已不存在，重置选择
+      if (selectedTemplateId.value && !projectTemplates.value.find(t => t.id === selectedTemplateId.value)) {
+        selectedTemplateId.value = ''
+        adTypeBlocks.value = []
+      }
+      // 如果是编辑模式，用最新模板回填已有数据
+      if (isEditMode.value) {
+        populateFromExistingData()
+      }
+    }
+  } catch (err) {
+    logger.error('加载项目模板失败:', err)
+  } finally {
+    formConfigLoading.value = false
+    formConfigLoaded.value = true
   }
-})
+}
 
-// 监听 formConfigLoaded，配置加载后如果有已有数据则回填
-watch(formConfigLoaded, (loaded) => {
-  if (loaded && visible.value && isEditMode.value) {
-    populateFromExistingData()
-  }
-})
+watch(visible, onVisibleChange)
 
 onMounted(() => {
   loadFormConfig()
