@@ -36,6 +36,9 @@ data class WorkOrder(
     @Json(name = "received_at") val receivedAt: String? = null,
     // 指派
     @Json(name = "assignee_name") val assigneeName: String? = null,
+    @Json(name = "assigned_at") val assignedAt: String? = null,
+    // 量尺状态
+    @Json(name = "measurement_status") val measurementStatus: String? = null,
     // 审批
     @Json(name = "approval") val approval: ApprovalInfo? = null,
     // 指派详情

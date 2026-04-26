@@ -10,6 +10,9 @@ interface WorkOrderDao {
     @Query("SELECT * FROM work_orders ORDER BY updated_at DESC")
     suspend fun getAll(): List<WorkOrderEntity>
 
+    @Query("SELECT * FROM work_orders WHERE assigned_to_user_id = :assignedTo ORDER BY updated_at DESC")
+    suspend fun getByAssignedTo(assignedTo: Int): List<WorkOrderEntity>
+
     @Query("SELECT * FROM work_orders WHERE id = :id")
     suspend fun getById(id: Int): WorkOrderEntity?
 
