@@ -77,6 +77,7 @@ data class WorkOrderDetailResponse(
     val activity_name: String?,
     val description: String?,
     val project_type: String?,
+    val measurement_status: String? = null,
     val address: String?,
     val contact_name: String?,
     val contact_phone: String?,
@@ -205,6 +206,8 @@ fun WorkOrderDetailResponse.toDomain(): WorkOrder {
         description = description,
         photos = photos,
         attachments = attachments,
+        // 量尺状态
+        measurementStatus = measurement_status,
         // 审批
         approval = approval?.toDomainApproval(),
         // 指派

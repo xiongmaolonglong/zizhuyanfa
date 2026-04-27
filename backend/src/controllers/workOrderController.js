@@ -368,6 +368,7 @@ async function listWorkOrders(req, res) {
       is_timeout: wo.deadline && wo.deadline < today,
       progress_percent: calcProgress(wo.current_stage),
       measurement: meas || null,
+      measurement_status: meas?.status || null,
       design_count: designCountMap[wo.id] || 0,
       construction_count: constructCountMap[wo.id] || 0,
       finance_summary: financeMap[wo.id] ? {
@@ -536,9 +537,11 @@ async function getWorkOrder(req, res) {
     }
     result.measurements = [measurement]
     result.measurement = measurement
+    result.measurement_status = measurement.status || null
   } else {
     result.measurements = []
     result.measurement = null
+    result.measurement_status = null
   }
 
   // 设计（单独查询，支持多条）
@@ -633,6 +636,21 @@ async function getWorkOrder(req, res) {
   if (result.custom_data && typeof result.custom_data === 'string') {
     try { result.custom_data = JSON.parse(result.custom_data) }
     catch { result.custom_data = {} }
+  }
+
+  // custom_data 中可能包含图片字段，补到 result.photos（申报照片为空时）
+  if (result.custom_data && typeof result.custom_data === 'object' && (!result.photos || result.photos.length === 0)) {
+    const photoKeys = Object.keys(result.custom_data).filter(k =>
+      k.includes('photo') || k.includes('Photo') || k.includes('photo_') || k.includes('_photo') ||
+      k.includes('image') || k.includes('Image')
+    )
+    for (const key of photoKeys) {
+      const val = result.custom_data[key]
+      if (Array.isArray(val) && val.length > 0) {
+        result.photos = val.filter(p => typeof p === 'string' && p)
+        break
+      }
+    }
   }
 
   result.logs = logs
