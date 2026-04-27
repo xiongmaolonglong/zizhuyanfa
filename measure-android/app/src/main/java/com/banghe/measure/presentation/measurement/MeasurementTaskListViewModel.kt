@@ -60,7 +60,8 @@ class MeasurementTaskListViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     stats = MeasurementStats(
-                        pendingCount = allTasks.count { t -> t.status == "submitted" && t.measurementStatus.isNullOrBlank() },
+                        // 量尺阶段的任务 status = "assigned"（不是 "submitted"）
+                        pendingCount = allTasks.count { t -> t.status == "assigned" && t.measurementStatus.isNullOrBlank() },
                         submittedCount = allTasks.count { t -> t.measurementStatus == "measured" },
                         completedCount = allTasks.count { t -> t.status == "completed" }
                     )
@@ -118,7 +119,8 @@ class MeasurementTaskListViewModel : ViewModel() {
 
     private fun filterByTab(tasks: List<WorkOrder>, tab: MeasurementTab): List<WorkOrder> {
         return when (tab) {
-            MeasurementTab.Pending -> tasks.filter { it.status == "submitted" && it.measurementStatus.isNullOrBlank() }
+            // 量尺阶段的任务 status = "assigned"（不是 "submitted"）
+            MeasurementTab.Pending -> tasks.filter { it.status == "assigned" && it.measurementStatus.isNullOrBlank() }
             MeasurementTab.Submitted -> tasks.filter { it.measurementStatus == "measured" }
             MeasurementTab.Completed -> tasks.filter { it.status == "completed" }
         }
