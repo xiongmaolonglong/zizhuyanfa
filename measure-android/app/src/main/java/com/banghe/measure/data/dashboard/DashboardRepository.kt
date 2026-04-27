@@ -15,7 +15,7 @@ class DashboardRepository {
             WorkOrderStats(
                 total = data.total,
                 pending = data.by_status["pending"] ?: 0,
-                inProgress = data.by_status["in_progress"] ?: 0,
+                inProgress = data.in_progress,
                 completed = data.by_status["completed"] ?: 0,
                 overdue = data.timeout_count
             )

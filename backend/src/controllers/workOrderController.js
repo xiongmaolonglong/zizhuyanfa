@@ -766,10 +766,15 @@ async function getWorkOrderStats(req, res) {
     where: { ...where, completed_at: { [Op.gte]: lastMonthStart, [Op.lte]: lastMonthEnd } },
   })
 
+  // 进行中：处于量尺/设计/生产/施工环节的工单总数
+  const activeStages = ['measurement', 'design', 'production', 'construction']
+  const inProgressCount = activeStages.reduce((sum, stage) => sum + (byStage[stage] || 0), 0)
+
   return success(res, {
     total: totalCount,
     by_stage: byStage,
     by_status: byStatus,
+    in_progress: inProgressCount,
     timeout_count: timeoutCount,
     timeout_orders: timeoutOrders,
     month_stats: {

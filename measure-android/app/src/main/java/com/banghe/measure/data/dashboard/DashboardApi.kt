@@ -12,6 +12,7 @@ data class WorkOrderStatsResponse(
     val total: Int,
     val by_stage: Map<String, Int>,
     val by_status: Map<String, Int>,
+    val in_progress: Int = 0,
     val timeout_count: Int,
     val timeout_orders: List<TimeoutOrder>?,
     val month_stats: MonthStats?
