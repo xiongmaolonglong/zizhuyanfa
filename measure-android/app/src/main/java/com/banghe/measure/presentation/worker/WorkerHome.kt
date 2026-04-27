@@ -81,7 +81,11 @@ fun WorkerHome(
                     onNavigateToConstructionList = { navController.navigate("construction_list") },
                     onNavigateToTaskDetail = { id -> navController.navigate("task_detail/$id") },
                     onNavigateToTaskList = { status ->
-                        navController.navigate("tasks")
+                        navController.navigate("tasks") {
+                            popUpTo("dashboard") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
                     onNavigateToPendingWork = { navController.navigate("pending_work") },
                     // 其他导航回调留空（测量员/安装员不使用）

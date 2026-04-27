@@ -92,7 +92,11 @@ fun AdminHome(
                         navController.navigate("task_detail/$taskId")
                     },
                     onNavigateToTaskList = { status ->
-                        navController.navigate("tasks?status=${status ?: ""}")
+                        navController.navigate("tasks?status=${status ?: ""}") {
+                            popUpTo("dashboard") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
                     onNavigateToPendingWork = { navController.navigate("pending_work") },
                     onNavigateToSearch = { navController.navigate("tasks") }
