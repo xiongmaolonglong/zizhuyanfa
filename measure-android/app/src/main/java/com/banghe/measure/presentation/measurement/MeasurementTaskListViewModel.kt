@@ -51,22 +51,18 @@ class MeasurementTaskListViewModel : ViewModel() {
         viewModelScope.launch {
             val repository = App.instance.taskRepository
 
-            val pendingResult = withTimeoutOrNull(5000) {
-                repository.getTasks(stage = "measurement", status = "pending", limit = 1)
+            // 按环节查全部，本地分类统计
+            val allResult = withTimeoutOrNull(5000) {
+                repository.getTasks(stage = "measurement", limit = 1000)
             }
-            val submittedResult = withTimeoutOrNull(5000) {
-                repository.getTasks(stage = "measurement", status = "submitted", limit = 1)
-            }
-            val completedResult = withTimeoutOrNull(5000) {
-                repository.getTasks(stage = "measurement", status = "completed", limit = 1)
-            }
+            val allTasks = allResult?.getOrNull() ?: emptyList()
 
             _uiState.update {
                 it.copy(
                     stats = MeasurementStats(
-                        pendingCount = pendingResult?.getOrNull()?.size ?: 0,
-                        submittedCount = submittedResult?.getOrNull()?.size ?: 0,
-                        completedCount = completedResult?.getOrNull()?.size ?: 0
+                        pendingCount = allTasks.count { t -> t.status == "submitted" && t.measurementStatus.isNullOrBlank() },
+                        submittedCount = allTasks.count { t -> t.measurementStatus == "measured" },
+                        completedCount = allTasks.count { t -> t.status == "completed" }
                     )
                 )
             }
@@ -85,35 +81,27 @@ class MeasurementTaskListViewModel : ViewModel() {
 
             try {
                 val repository = App.instance.taskRepository
-                val statusParam = _uiState.value.currentTab.status
 
+                // 按环节查全部，本地按 tab 分类（工单进入测量环节时 status = "submitted"，不是 "pending"）
                 val result = withTimeoutOrNull(10000) {
                     repository.getTasks(
-                        status = statusParam,
                         stage = "measurement",
                         page = page,
-                        limit = 20
+                        limit = 500
                     )
                 }
 
-                result?.getOrNull()?.let { tasks ->
-                    _uiState.update {
-                        it.copy(
-                            tasks = if (refresh) tasks else it.tasks + tasks,
-                            currentPage = page,
-                            hasMore = tasks.size >= 20,
-                            isLoading = false,
-                            isRefreshing = false
-                        )
-                    }
-                } ?: run {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isRefreshing = false,
-                            hasMore = false
-                        )
-                    }
+                val allTasks = result?.getOrNull() ?: emptyList()
+                val filtered = filterByTab(allTasks, _uiState.value.currentTab)
+
+                _uiState.update {
+                    it.copy(
+                        tasks = filtered,
+                        currentPage = page,
+                        hasMore = allTasks.size >= 500,
+                        isLoading = false,
+                        isRefreshing = false
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -125,6 +113,14 @@ class MeasurementTaskListViewModel : ViewModel() {
                     )
                 }
             }
+        }
+    }
+
+    private fun filterByTab(tasks: List<WorkOrder>, tab: MeasurementTab): List<WorkOrder> {
+        return when (tab) {
+            MeasurementTab.Pending -> tasks.filter { it.status == "submitted" && it.measurementStatus.isNullOrBlank() }
+            MeasurementTab.Submitted -> tasks.filter { it.measurementStatus == "measured" }
+            MeasurementTab.Completed -> tasks.filter { it.status == "completed" }
         }
     }
 
