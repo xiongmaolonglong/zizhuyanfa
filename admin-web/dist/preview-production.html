@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生产管理 - 材料看板</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --warning: #ea580c;
+    --danger: #dc2626;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --bg-page: #f3f4f6;
+    --bg-white: #ffffff;
+    --border: #e5e7eb;
+    --radius: 8px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-page); color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+  .app { max-width: 1200px; margin: 0 auto; padding: var(--space-6); }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6); }
+  .page-title { font-size: 20px; font-weight: 700; }
+  .header-actions { display: flex; gap: var(--space-2); }
+  .btn { padding: 6px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-white); color: var(--text-primary); transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+  .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+  .btn-success:hover { background: #15803d; }
+  .btn-sm { padding: 3px 10px; font-size: 12px; }
+  .btn-link { border: none; background: none; color: var(--primary); padding: 2px 4px; }
+  .btn-link:hover { text-decoration: underline; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: var(--space-4); }
+  .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab-badge { background: var(--primary); color: #fff; font-size: 11px; padding: 1px 6px; border-radius: 10px; margin-left: 6px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .card { background: var(--bg-white); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: var(--space-4); }
+  .card-header { padding: var(--space-4); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-body { padding: var(--space-4); }
+  .filter-bar { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .filter-bar input, .filter-bar select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { background: #f9fafb; font-weight: 600; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
+  tr:hover td { background: #f9fafb; }
+  .wo-link { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .wo-link:hover { text-decoration: underline; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+  .tag-pending { background: #fef3c7; color: #92400e; }
+  .tag-producing { background: var(--primary-light); color: var(--primary); }
+  .tag-completed { background: #dcfce7; color: var(--success); }
+  .tag-material { background: #ede9fe; color: #6b21a8; }
+  .material-group { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--space-4); overflow: hidden; }
+  .material-group-header { background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%); padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; }
+  .material-group-title { font-weight: 700; font-size: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+  .material-group-count { font-size: 12px; color: var(--text-secondary); }
+  .material-group-actions { display: flex; gap: var(--space-2); }
+  .material-task-list { padding: 0; }
+  .material-task { display: flex; align-items: center; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  .material-task:last-child { border-bottom: none; }
+  .material-task:hover { background: #fafbfc; }
+  .material-task .task-check { margin-right: var(--space-3); }
+  .material-task .task-info { flex: 1; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+  .material-task .task-wo { font-weight: 500; color: var(--text-primary); }
+  .material-task .task-store { color: var(--text-secondary); }
+  .material-task .task-face { color: var(--primary); font-size: 13px; }
+  .material-task .task-area { color: var(--text-tertiary); font-size: 12px; }
+  .material-task .task-actions { display: flex; gap: var(--space-2); }
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-bottom: var(--space-6); }
+  .stat-card { background: var(--bg-white); border-radius: var(--radius); padding: var(--space-4); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-value.blue { color: var(--primary); }
+  .stat-value.green { color: var(--success); }
+  .stat-value.orange { color: var(--warning); }
+  .stat-value.red { color: var(--danger); }
+  .dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .dialog-overlay.show { display: flex; }
+  .dialog { background: var(--bg-white); border-radius: 12px; width: 560px; max-width: 90vw; max-height: 85vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  .dialog-header { padding: var(--space-5); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .dialog-title { font-size: 16px; font-weight: 700; }
+  .dialog-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-tertiary); padding: 4px; }
+  .dialog-close:hover { color: var(--text-primary); }
+  .dialog-body { padding: var(--space-5); }
+  .dialog-footer { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: var(--space-3); }
+  .form-group { margin-bottom: var(--space-4); }
+  .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary); }
+  .form-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; }
+  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  textarea.form-input { resize: vertical; min-height: 60px; }
+  .checklist { list-style: none; }
+  .checklist-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-item input[type="checkbox"] { accent-color: var(--primary); margin-top: 3px; }
+  .checklist-item label { cursor: pointer; }
+  .batch-no { font-family: monospace; font-size: 14px; font-weight: 600; color: var(--primary); background: var(--primary-light); padding: 4px 12px; border-radius: 4px; display: inline-block; }
+  .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .progress-fill.green { background: var(--success); }
+  .progress-fill.blue { background: var(--primary); }
+  .history-item { display: flex; align-items: center; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+  .history-item:last-child { border-bottom: none; }
+  .history-item:hover { background: #fafbfc; }
+  .history-batch { font-family: monospace; font-size: 13px; font-weight: 600; color: var(--primary); min-width: 180px; }
+  .history-material { min-width: 100px; }
+  .history-wo-count { color: var(--text-secondary); min-width: 120px; }
+  .history-date { color: var(--text-tertiary); font-size: 12px; min-width: 150px; }
+  .history-user { color: var(--text-secondary); min-width: 80px; }
+  .empty { text-align: center; padding: var(--space-6); color: var(--text-tertiary); }
+  .empty-icon { font-size: 40px; margin-bottom: var(--space-3); }
+  input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+  .toast { position: fixed; top: 20px; right: 20px; background: var(--success); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; transform: translateX(120%); transition: transform 0.3s; }
+  .toast.show { transform: translateX(0); }
+  .toast.error { background: var(--danger); }
+  .verify-hint { background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #166534; margin-bottom: 14px; }
+  .verify-hint strong { color: #15803d; }
+  .verify-counter { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+  .verify-counter span { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="page-header">
+    <div><h1 class="page-title">生产管理</h1></div>
+    <div class="header-actions">
+      <button class="btn" onclick="location.reload()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        刷新
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">待生产工单</div><div class="stat-value orange" id="stat-pending">5</div></div>
+    <div class="stat-card"><div class="stat-label">生产中</div><div class="stat-value blue" id="stat-producing">2</div></div>
+    <div class="stat-card"><div class="stat-label">已完成</div><div class="stat-value green" id="stat-completed">1</div></div>
+    <div class="stat-card"><div class="stat-label">材料种类</div><div class="stat-value red" id="stat-materials">6</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="tasks" onclick="switchTab('tasks')">生产任务</div>
+    <div class="tab" data-tab="board" onclick="switchTab('board')">材料看板 <span class="tab-badge" id="board-badge">5</span></div>
+    <div class="tab" data-tab="history" onclick="switchTab('history')">生产记录</div>
+  </div>
+
+  <!-- Tab 1: 生产任务 -->
+  <div class="tab-content active" id="tab-tasks">
+    <div class="filter-bar">
+      <input type="text" placeholder="搜索工单号/店铺名" style="width:220px" id="task-search" oninput="filterTasks()">
+      <select id="task-material-filter" onchange="filterTasks()">
+        <option value="">全部材料</option>
+        <option value="KT板">KT板</option>
+        <option value="铝塑板">铝塑板</option>
+        <option value="亚克力">亚克力</option>
+        <option value="PVC板">PVC板</option>
+        <option value="灯布">灯布</option>
+        <option value="铁架">铁架</option>
+      </select>
+      <select id="task-status-filter" onchange="filterTasks()">
+        <option value="">全部状态</option>
+        <option value="pending">待生产</option>
+        <option value="completed">已完成</option>
+      </select>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th style="width:40px"><input type="checkbox" id="task-select-all" onchange="toggleSelectAll()"></th>
+          <th>工单号</th><th>店铺名</th><th>材料</th><th>面</th>
+          <th>面积(m²)</th><th>状态</th><th>所属批次</th><th style="width:120px">操作</th>
+        </tr></thead>
+        <tbody id="tasks-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab 2: 材料看板 -->
+  <div class="tab-content" id="tab-board">
+    <div id="board-container"></div>
+  </div>
+
+  <!-- Tab 3: 生产记录 -->
+  <div class="tab-content" id="tab-history">
+    <div class="filter-bar">
+      <input type="text" placeholder="搜索批次号/工单号" style="width:220px" id="history-search" oninput="filterHistory()">
+      <select id="history-material-filter" onchange="filterHistory()">
+        <option value="">全部材料</option>
+        <option value="KT板">KT板</option>
+        <option value="铝塑板">铝塑板</option>
+        <option value="亚克力">亚克力</option>
+      </select>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>批次号</th><th>材料类型</th><th>关联工单</th><th>生产日期</th><th>操作人</th><th>生产数量</th><th style="width:100px">操作</th>
+        </tr></thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 核对完成对话框 -->
+<div class="dialog-overlay" id="verify-dialog">
+  <div class="dialog">
+    <div class="dialog-header">
+      <span class="dialog-title">核对完成 — <span id="verify-material" style="color:var(--primary)"></span></span>
+      <button class="dialog-close" onclick="closeDialog('verify-dialog')">&times;</button>
+    </div>
+    <div class="dialog-body">
+      <div class="form-group">
+        <label class="form-label">批次号</label>
+        <span class="batch-no" id="verify-batch-no"></span>
+      </div>
+      <div class="verify-hint">
+        请对照实物，勾选<strong>已生产完成</strong>的工单。未勾选的视为未完成，下次继续生产。
+      </div>
+      <div class="verify-counter">已确认 <span id="verify-checked-count">0</span> / <span id="verify-total-count">0</span></div>
+      <ul class="checklist" id="verify-checklist"></ul>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">生产备注</label>
+        <textarea class="form-input" id="verify-notes" placeholder="可选"></textarea>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button class="btn" onclick="closeDialog('verify-dialog')">取消</button>
+      <button class="btn btn-success" id="verify-submit-btn" onclick="confirmVerify()">确认完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批次详情对话框 -->
+<div class="dialog-overlay" id="detail-dialog">
+  <div class="dialog">
+    <div class="dialog-header">
+      <span class="dialog-title">批次详情</span>
+      <button class="dialog-close" onclick="closeDialog('detail-dialog')">&times;</button>
+    </div>
+    <div class="dialog-body" id="detail-body"></div>
+    <div class="dialog-footer"><button class="btn" onclick="closeDialog('detail-dialog')">关闭</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const materials = ['KT板', '铝塑板', '亚克力', 'PVC板', '灯布', '铁架'];
+
+// 生产任务（每条 = 工单+材料+面）
+const mockTasks = [
+  { id: 1, wo: 'GG-2026-0033', store: '满天星超市', material: 'KT板', face: '正面', w: 2.22, h: 0.33, area: 0.73, status: 'pending', batchId: null },
+  { id: 2, wo: 'GG-2026-0033', store: '满天星超市', material: 'KT板', face: '左侧', w: 1.23, h: 2.22, area: 2.73, status: 'pending', batchId: null },
+  { id: 6, wo: 'GG-2026-0033', store: '满天星超市', material: '铝塑板', face: '背面', w: 2.22, h: 0.33, area: 0.73, status: 'pending', batchId: null },
+  { id: 3, wo: 'GG-2026-0034', store: '星巴克咖啡', material: 'KT板', face: '门头', w: 5.0, h: 2.0, area: 10.0, status: 'pending', batchId: null },
+  { id: 8, wo: 'GG-2026-0034', store: '星巴克咖啡', material: '亚克力', face: 'LOGO字', w: 1.5, h: 0.6, area: 0.9, status: 'pending', batchId: null },
+  { id: 4, wo: 'GG-2026-0035', store: '蜜雪冰城', material: 'KT板', face: '招牌', w: 3.0, h: 1.0, area: 3.0, status: 'pending', batchId: null },
+  { id: 10, wo: 'GG-2026-0035', store: '蜜雪冰城', material: '灯布', face: '灯箱布', w: 3.0, h: 1.2, area: 3.6, status: 'pending', batchId: null },
+  { id: 5, wo: 'GG-2026-0036', store: '瑞幸咖啡', material: 'KT板', face: '灯箱', w: 1.5, h: 1.5, area: 2.25, status: 'pending', batchId: null },
+  { id: 11, wo: 'GG-2026-0036', store: '瑞幸咖啡', material: 'PVC板', face: '侧发光', w: 1.0, h: 0.8, area: 0.8, status: 'pending', batchId: null },
+  { id: 7, wo: 'GG-2026-0037', store: '老乡鸡', material: '铝塑板', face: '门牌', w: 2.0, h: 0.8, area: 1.6, status: 'pending', batchId: null },
+  { id: 12, wo: 'GG-2026-0037', store: '老乡鸡', material: '铁架', face: '支撑架', w: 2.0, h: 1.5, area: 3.0, status: 'pending', batchId: null },
+  { id: 9, wo: 'GG-2026-0038', store: '汉堡王', material: '亚克力', face: '菜单牌', w: 2.0, h: 1.5, area: 3.0, status: 'pending', batchId: null },
+];
+
+// 工单级别的源文件
+const woSourceFiles = {
+  'GG-2026-0033': ['满天星超市_设计稿.cdr'],
+  'GG-2026-0034': ['星巴克_门头+LOGO.cdr'],
+  'GG-2026-0035': ['蜜雪冰城_招牌+灯箱.cdr'],
+  'GG-2026-0036': ['瑞幸_灯箱+PVC.cdr'],
+  'GG-2026-0037': ['老乡鸡_门牌+铁架.cdr'],
+  'GG-2026-0038': ['汉堡王_菜单牌.cdr'],
+};
+
+// 生产批次（记录用）
+const mockBatches = [
+  { id: 'BATCH-001', material: '灯布', woGroups: [
+    { wo: 'GG-2026-0035', store: '蜜雪冰城', taskIds: [10], checked: true, sourceFiles: woSourceFiles['GG-2026-0035'] },
+  ], qty: 1, date: '2026-04-15 10:00', user: '李厂长', notes: '加急处理' },
+];
+
+let tasks = JSON.parse(JSON.stringify(mockTasks));
+let batches = JSON.parse(JSON.stringify(mockBatches));
+let batchCounter = 2;
+let currentVerifyData = null; // { material, woGroups, batchNo }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${name}"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+// ===== 按工单+材料合并 =====
+function groupByWoMaterial(taskList) {
+  const map = {};
+  taskList.forEach(t => {
+    const key = `${t.wo}|||${t.material}`;
+    if (!map[key]) map[key] = { wo: t.wo, store: t.store, material: t.material, faces: [], totalArea: 0, taskIds: [], statuses: new Set(), batchIds: new Set() };
+    map[key].faces.push(`${t.face}(${t.w}×${t.h})`);
+    map[key].totalArea += t.area;
+    map[key].taskIds.push(t.id);
+    map[key].statuses.add(t.status);
+    if (t.batchId) map[key].batchIds.add(t.batchId);
+  });
+  return Object.values(map);
+}
+
+// ===== Tab 1: 生产任务 =====
+function renderTasks(filtered) {
+  const items = groupByWoMaterial(filtered || tasks);
+  const tbody = document.getElementById('tasks-tbody');
+  tbody.innerHTML = items.map(item => {
+    const allDone = item.statuses.size === 1 && item.statuses.has('completed');
+    const allPending = item.statuses.size === 1 && item.statuses.has('pending');
+    const statusClass = allDone ? 'tag-completed' : 'tag-pending';
+    const statusText = allDone ? '已完成' : '待生产';
+    return `
+    <tr>
+      <td><input type="checkbox" class="task-check" data-wo="${item.wo}" data-material="${item.material}" ${!allPending ? 'disabled' : ''}></td>
+      <td><a class="wo-link" href="#">${item.wo}</a></td>
+      <td>${item.store}</td>
+      <td><span class="tag tag-material">${item.material}</span></td>
+      <td style="font-size:12px">${item.faces.join('<br>')}</td>
+      <td>${item.totalArea.toFixed(2)}</td>
+      <td><span class="tag ${statusClass}">${statusText}</span></td>
+      <td style="font-family:monospace;font-size:12px">${[...item.batchIds].join(', ') || '—'}</td>
+      <td>${allPending ? `<button class="btn btn-sm btn-link" onclick="startVerifyGroup('${item.wo}','${item.material}')">标记完成</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTasks() {
+  const kw = document.getElementById('task-search').value.toLowerCase();
+  const mat = document.getElementById('task-material-filter').value;
+  const st = document.getElementById('task-status-filter').value;
+  const items = groupByWoMaterial(tasks).filter(item => {
+    if (kw && !item.wo.toLowerCase().includes(kw) && !item.store.toLowerCase().includes(kw)) return false;
+    if (mat && item.material !== mat) return false;
+    if (st && ((st === 'completed') !== item.statuses.has('completed'))) return false;
+    return true;
+  });
+  renderTasks(items);
+}
+
+function toggleSelectAll() {
+  const checked = document.getElementById('task-select-all').checked;
+  document.querySelectorAll('#tab-tasks .task-check').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
+}
+
+// ===== Tab 2: 材料看板 =====
+function renderBoard() {
+  const container = document.getElementById('board-container');
+  const pendingItems = groupByWoMaterial(tasks.filter(t => t.status === 'pending'));
+
+  const groups = {};
+  pendingItems.forEach(item => {
+    if (!groups[item.material]) groups[item.material] = [];
+    groups[item.material].push(item);
+  });
+
+  document.getElementById('board-badge').textContent = Object.keys(groups).length;
+  if (Object.keys(groups).length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div>暂无待生产任务</div></div>';
+    return;
+  }
+
+  const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  container.innerHTML = sorted.map(([mat, items]) => `
+    <div class="material-group">
+      <div class="material-group-header">
+        <div>
+          <span class="material-group-title">📦 ${mat}</span>
+          <span class="material-group-count">（${items.length} 个工单 · 共 ${items.reduce((s, i) => s + i.totalArea, 0).toFixed(2)} m²）</span>
+        </div>
+        <div class="material-group-actions">
+          <button class="btn btn-sm btn-primary" onclick="openVerifyDialog('${mat}')">标记完成 (${items.length})</button>
+        </div>
+      </div>
+      <div class="material-task-list">
+        ${items.map(item => `
+          <div class="material-task">
+            <input type="checkbox" class="task-check" data-wo="${item.wo}" data-material="${item.material}">
+            <div class="task-info">
+              <span class="task-wo">${item.wo}</span>
+              <span class="task-store">${item.store}</span>
+              <span class="task-face">${item.faces.join(' + ')}</span>
+              <span class="task-area">${item.totalArea.toFixed(2)} m²</span>
+            </div>
+            <div class="task-actions">
+              <button class="btn btn-sm btn-link" onclick="startVerifyGroup('${item.wo}','${item.material}')">标记完成</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== Tab 3: 生产记录 =====
+function renderHistory(filtered) {
+  const list = filtered || batches;
+  const tbody = document.getElementById('history-tbody');
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无生产记录</td></tr>'; return; }
+  tbody.innerHTML = list.map(b => {
+    const total = b.woGroups.length;
+    const done = b.woGroups.filter(g => g.checked).length;
+    return `
+    <tr class="history-item">
+      <td><span class="batch-no">${b.id}</span></td>
+      <td><span class="tag tag-material">${b.material}</span></td>
+      <td>${done}/${total} 工单</td>
+      <td class="history-date">${b.date}</td>
+      <td class="history-user">${b.user}</td>
+      <td>${b.qty}</td>
+      <td><button class="btn btn-sm btn-link" onclick="showBatchDetail('${b.id}')">详情</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterHistory() {
+  const kw = document.getElementById('history-search').value.toLowerCase();
+  const mat = document.getElementById('history-material-filter').value;
+  renderHistory(batches.filter(b => {
+    if (kw && !b.id.toLowerCase().includes(kw)) return false;
+    if (mat && b.material !== mat) return false;
+    return true;
+  }));
+}
+
+// ===== 核对完成流程 =====
+function openVerifyDialog(material) {
+  const items = groupByWoMaterial(tasks.filter(t => t.status === 'pending' && t.material === material));
+  if (items.length === 0) { showToast('没有待生产的任务', 'error'); return; }
+  const batchNo = `BATCH-${String(batchCounter).padStart(3, '0')}`;
+  currentVerifyData = {
+    material, batchNo,
+    woGroups: items.map(item => ({
+      wo: item.wo, store: item.store, taskIds: item.taskIds,
+      faces: item.faces.join(' + '), totalArea: item.totalArea,
+      sourceFiles: woSourceFiles[item.wo] || [], checked: false,
+    }))
+  };
+  showVerifyDialog();
+}
+
+function startVerifyGroup(wo, material) {
+  const items = groupByWoMaterial(tasks.filter(t => t.status === 'pending' && t.wo === wo && t.material === material));
+  if (items.length === 0) return;
+  const item = items[0];
+  const batchNo = `BATCH-${String(batchCounter).padStart(3, '0')}`;
+  currentVerifyData = {
+    material, batchNo,
+    woGroups: [{
+      wo: item.wo, store: item.store, taskIds: item.taskIds,
+      faces: item.faces.join(' + '), totalArea: item.totalArea,
+      sourceFiles: woSourceFiles[item.wo] || [], checked: false,
+    }]
+  };
+  showVerifyDialog();
+}
+
+function showVerifyDialog() {
+  const d = currentVerifyData;
+  document.getElementById('verify-material').textContent = d.material;
+  document.getElementById('verify-batch-no').textContent = d.batchNo;
+  document.getElementById('verify-total-count').textContent = d.woGroups.length;
+  document.getElementById('verify-checked-count').textContent = '0';
+  document.getElementById('verify-notes').value = '';
+
+  const list = document.getElementById('verify-checklist');
+  list.innerHTML = d.woGroups.map((item, i) => `
+    <li class="checklist-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+      <label style="display:flex;align-items:center;gap:8px;width:100%">
+        <input type="checkbox" data-idx="${i}" onchange="updateVerifyCount()">
+        <span><strong>${item.wo}</strong> ${item.store} — ${item.faces} (${item.totalArea.toFixed(2)}m²)</span>
+      </label>
+      ${item.sourceFiles.length ? `<div style="padding-left:24px;font-size:12px;color:var(--text-secondary)">
+        源文件：${item.sourceFiles.map(f => `<a href="#" style="color:var(--primary)" onclick="event.preventDefault()">📄 ${f}</a>`).join(' ')}
+      </div>` : ''}
+    </li>
+  `).join('');
+
+  document.getElementById('verify-dialog').classList.add('show');
+}
+
+function updateVerifyCount() {
+  const checked = document.querySelectorAll('#verify-checklist input:checked').length;
+  document.getElementById('verify-checked-count').textContent = checked;
+}
+
+function confirmVerify() {
+  const d = currentVerifyData;
+  const checkedIndices = [];
+  document.querySelectorAll('#verify-checklist input:checked').forEach(cb => checkedIndices.push(parseInt(cb.dataset.idx)));
+
+  if (checkedIndices.length === 0) {
+    showToast('请至少勾选一个已完成的工单', 'error');
+    return;
+  }
+
+  // 勾选的标记完成，未勾选的保持待生产
+  checkedIndices.forEach(i => {
+    const group = d.woGroups[i];
+    group.checked = true;
+    group.taskIds.forEach(tid => {
+      const t = tasks.find(tt => tt.id === tid);
+      if (t) { t.status = 'completed'; t.batchId = d.batchNo; }
+    });
+  });
+
+  batches.unshift({
+    id: d.batchNo, material: d.material,
+    woGroups: d.woGroups,
+    qty: checkedIndices.length,
+    date: new Date().toLocaleString('zh-CN'), user: '当前用户',
+    notes: document.getElementById('verify-notes').value,
+  });
+
+  batchCounter++;
+  closeDialog('verify-dialog');
+  renderAll();
+
+  const uncompleted = d.woGroups.length - checkedIndices.length;
+  if (uncompleted > 0) {
+    showToast(`${d.material}：${checkedIndices.length} 个已确认，${uncompleted} 个未完成下次继续`);
+  } else {
+    showToast(`批次 ${d.batchNo} 已完成，${checkedIndices.length} 个工单标记完成`);
+  }
+}
+
+// ===== 批次详情 =====
+function showBatchDetail(batchId) {
+  const batch = batches.find(b => b.id === batchId);
+  if (!batch) return;
+  const done = batch.woGroups.filter(g => g.checked).length;
+  const total = batch.woGroups.length;
+  document.getElementById('detail-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <span class="batch-no">${batch.id}</span>
+      <span class="tag tag-material" style="margin-left:8px">${batch.material}</span>
+      <span class="tag ${done === total ? 'tag-completed' : 'tag-pending'}" style="margin-left:8px">${done}/${total} 已核对</span>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px">
+      <div><span style="color:var(--text-secondary);font-size:12px">生产日期</span><br><strong>${batch.date}</strong></div>
+      <div><span style="color:var(--text-secondary);font-size:12px">操作人</span><br><strong>${batch.user}</strong></div>
+      <div><span style="color:var(--text-secondary);font-size:12px">完成数量</span><br><strong>${batch.qty}</strong></div>
+      <div><span style="color:var(--text-secondary);font-size:12px">备注</span><br><strong>${batch.notes || '—'}</strong></div>
+    </div>
+    <div style="margin-bottom:8px"><strong>核对清单 (${done}/${total})</strong></div>
+    ${batch.woGroups.map(item => `
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${item.wo} ${item.store}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">${item.sourceFiles.map(f => '📄 ' + f).join(' ')}</div>
+        </div>
+        <span class="tag ${item.checked ? 'tag-completed' : 'tag-pending'}">${item.checked ? '已核对' : '未核对'}</span>
+      </div>
+    `).join('')}
+  `;
+  document.getElementById('detail-dialog').classList.add('show');
+}
+
+// ===== 通用 =====
+function closeDialog(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.dialog-overlay').forEach(o => { o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); }); });
+
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast' + (type === 'error' ? ' error' : '');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function updateStats() {
+  const groups = groupByWoMaterial(tasks);
+  const pending = groups.filter(g => g.statuses.has('pending'));
+  const completed = groups.filter(g => g.statuses.has('completed'));
+  document.getElementById('stat-pending').textContent = pending.length;
+  document.getElementById('stat-completed').textContent = completed.length;
+  document.getElementById('stat-materials').textContent = new Set(tasks.map(t => t.material)).size;
+}
+
+function renderAll() { renderTasks(); renderBoard(); renderHistory(); updateStats(); }
+renderAll();
+</script>
+</body>
+</html>
