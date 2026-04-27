@@ -93,13 +93,23 @@ data class WorkOrderDetailResponse(
     val logs: List<WorkOrderLogInfo>?,
     val remarks: List<Map<String, Any?>>?,
     val custom_data: Map<String, Any?>?,
-    val form_fields: List<FormFieldMeta>?
+    val form_fields: List<FormFieldMeta>?,
+    val form_values: List<FormValueResponse>?
 )
 
 data class FormFieldMeta(
     val field_key: String,
     val field_label: String,
     val field_type: String
+)
+
+data class FormValueResponse(
+    val field_key: String,
+    val field_label: String,
+    val field_type: String,
+    val required: Boolean = false,
+    val placeholder: String? = null,
+    val value: Any? = null
 )
 
 data class ClientInfo(
@@ -235,12 +245,25 @@ fun WorkOrderDetailResponse.toDomain(): WorkOrder {
         // 自定义表单
         customData = custom_data,
         // 表单字段元数据
-        formFields = form_fields?.map { it.toDomainFormField() }
+        formFields = form_fields?.map { it.toDomainFormField() },
+        // 动态表单字段值
+        formValues = form_values?.map { it.toDomainFormFieldValue() }
     )
 }
 
 fun FormFieldMeta.toDomainFormField(): com.banghe.measure.domain.model.FormFieldMeta {
     return com.banghe.measure.domain.model.FormFieldMeta(field_key, field_label, field_type)
+}
+
+fun FormValueResponse.toDomainFormFieldValue(): com.banghe.measure.domain.model.FormFieldValue {
+    return com.banghe.measure.domain.model.FormFieldValue(
+        fieldKey = field_key,
+        fieldLabel = field_label,
+        fieldType = field_type,
+        required = required,
+        placeholder = placeholder,
+        value = value
+    )
 }
 
 fun ApprovalInfo.toDomainApproval(): com.banghe.measure.domain.model.ApprovalInfo {

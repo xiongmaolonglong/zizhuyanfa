@@ -59,13 +59,25 @@ data class WorkOrder(
     // 自定义表单数据（动态字段）
     @Json(name = "custom_data") val customData: Map<String, Any?>? = null,
     // 表单字段元数据（key → label 映射）
-    @Json(name = "form_fields") val formFields: List<FormFieldMeta>? = null
+    @Json(name = "form_fields") val formFields: List<FormFieldMeta>? = null,
+    // 动态表单字段值（后端解析所有配置字段的值）
+    @Json(name = "form_values") val formValues: List<FormFieldValue>? = null
 )
 
 data class FormFieldMeta(
     val fieldKey: String,
     val fieldLabel: String,
     val fieldType: String
+)
+
+/** 动态表单字段（含配置+解析后的值） */
+data class FormFieldValue(
+    val fieldKey: String,
+    val fieldLabel: String,
+    val fieldType: String,
+    val required: Boolean = false,
+    val placeholder: String? = null,
+    val value: Any? = null
 )
 
 @JsonClass(generateAdapter = true)

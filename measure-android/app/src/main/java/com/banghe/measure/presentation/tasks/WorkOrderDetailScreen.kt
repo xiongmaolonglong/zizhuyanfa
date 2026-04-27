@@ -1,8 +1,13 @@
 package com.banghe.measure.presentation.tasks
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -11,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
@@ -389,33 +395,17 @@ private fun WorkOrderContent(
 
 @Composable
 private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder) {
-    // 表单字段映射：field_key → (label, type)
-    val formFieldMap = buildMap<String, Pair<String, String>> {
-        workOrder.formFields?.forEach { f ->
-            put(f.fieldKey, f.fieldLabel to f.fieldType)
-        }
-    }
+    val fields = workOrder.formValues
+    if (fields.isNullOrEmpty()) return
 
-    val items = listOfNotNull(
-        "甲方企业" to (workOrder.clientName ?: "-"),
-        "店铺名字" to workOrder.title,
-        "活动项目" to (workOrder.projectType ?: "-"),
-        "项目地址" to (workOrder.address ?: "-"),
-        "联系人" to (workOrder.contactName ?: "-"),
-        "联系电话" to (workOrder.contactPhone ?: "-"),
-        "需求描述" to (workOrder.description ?: "-"),
-        "截止时间" to workOrder.deadline?.let { formatDateTime(it) },
-        "申报人" to workOrder.creatorName?.let { "由 $it 申报" }
-    )
-
-    // 两列布局
-    items.chunked(2).forEach { row ->
+    // 两列布局：按表单配置顺序渲染所有字段
+    fields.chunked(2).forEach { row ->
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            row.forEach { (label, value) ->
-                GridItem(label, value, modifier = Modifier.weight(1f))
+            row.forEach { field ->
+                DynamicFieldItem(field, modifier = Modifier.weight(1f))
             }
             if (row.size == 1) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -423,54 +413,68 @@ private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder
         }
         Spacer(modifier = Modifier.height(12.dp))
     }
+}
 
-    // 自定义表单字段（按表单配置顺序渲染）
-    workOrder.customData?.let { customData ->
-        val customEntries = mutableListOf<Triple<String, String, Any?>>()
-        val remaining = customData.toMutableMap()
+/** 动态渲染单个表单字段，根据 field_type 决定显示方式 */
+@Composable
+private fun DynamicFieldItem(
+    field: com.banghe.measure.domain.model.FormFieldValue,
+    modifier: Modifier = Modifier
+) {
+    val imageUrls = extractImageUrls(field)
+    if (imageUrls.isNotEmpty()) {
+        ImageFieldRow(field.fieldLabel, imageUrls, modifier = modifier)
+        return
+    }
 
-        // 先按表单配置的顺序渲染
-        workOrder.formFields?.forEach { field ->
-            remaining[field.fieldKey]?.let { value ->
-                if (value != null) {
-                    customEntries.add(Triple(field.fieldKey, field.fieldLabel, value))
-                    remaining.remove(field.fieldKey)
-                }
+    val displayValue = formatFieldValue(field)
+    if (displayValue != null) {
+        GridItem(field.fieldLabel, displayValue, modifier = modifier)
+    }
+}
+
+/** 判断字段值是否为图片并提取 URL 列表 */
+private fun extractImageUrls(field: com.banghe.measure.domain.model.FormFieldValue): List<String> {
+    val type = field.fieldType
+    val value = field.value
+    val isImageType = type == "image" || type == "photo" || field.fieldKey.contains("photo", ignoreCase = true)
+    return when {
+        isImageType && value is List<*> && value.isNotEmpty() ->
+            value.filterIsInstance<String>().filter { it.isNotBlank() && it.startsWith("http") }
+        isImageType && value is String && value.isNotBlank() && value.startsWith("http") ->
+            listOf(value)
+        value is String && value.isNotBlank() && value.startsWith("http") &&
+            (value.endsWith(".jpg", ignoreCase = true) || value.endsWith(".jpeg", ignoreCase = true) ||
+                value.endsWith(".png", ignoreCase = true) || value.endsWith(".webp", ignoreCase = true)) ->
+            listOf(value)
+        value is List<*> && value.isNotEmpty() && value.any { it is String && it.toString().startsWith("http") } ->
+            value.filterIsInstance<String>().filter { it.startsWith("http") }
+        else -> emptyList()
+    }
+}
+
+/** 格式化字段值为显示文本 */
+private fun formatFieldValue(field: com.banghe.measure.domain.model.FormFieldValue): String? {
+    val value = field.value ?: return null
+    val type = field.fieldType
+    return when {
+        type == "datetime" || type == "date" -> {
+            when (value) {
+                is String -> formatDateTime(value)
+                else -> value.toString()
             }
         }
-        // 再渲染未在配置中的字段
-        remaining.forEach { (key, value) ->
-            if (value != null) {
-                customEntries.add(Triple(key, key.replace("_", ""), value))
+        type == "client_select" -> {
+            // 甲方选择：value 可能是对象 {id, name} 或字符串
+            when (value) {
+                is String -> value
+                is Map<*, *> -> value["name"]?.toString() ?: value.toString()
+                else -> value.toString()
             }
         }
-
-        if (customEntries.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-
-            customEntries.forEach { (key, label, value) ->
-                val type = formFieldMap[key]?.second ?: ""
-                when {
-                    type == "image" && value is List<*> && value.isNotEmpty() ->
-                        ImageFieldRow(label, value.filterIsInstance<String>(), modifier = Modifier.fillMaxWidth())
-                    else -> {
-                        val displayValue = formatCustomValue(value)
-                        if (displayValue != null) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                GridItem(label, displayValue, modifier = Modifier.weight(1f))
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
-                }
-            }
-        }
+        is List<*> -> if (value.isEmpty()) null else value.joinToString(", ")
+        is String -> value.ifBlank { null }
+        else -> value.toString()
     }
 }
 
@@ -480,6 +484,8 @@ private fun ImageFieldRow(
     urls: List<String>,
     modifier: Modifier = Modifier
 ) {
+    var previewIndex by remember { mutableIntStateOf(-1) }
+
     Column(modifier = modifier) {
         Text(
             text = label,
@@ -488,9 +494,11 @@ private fun ImageFieldRow(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            urls.take(4).forEach { url ->
+            urls.take(4).forEachIndexed { idx, url ->
                 Card(
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clickable { previewIndex = idx },
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     coil.compose.AsyncImage(
@@ -503,13 +511,112 @@ private fun ImageFieldRow(
             }
             if (urls.size > 4) {
                 Box(
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clickable { previewIndex = 4 },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "+${urls.size - 4}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextMuted
+                    )
+                }
+            }
+        }
+    }
+
+    if (previewIndex >= 0 && previewIndex < urls.size) {
+        ImagePreviewDialog(
+            urls = urls,
+            initialIndex = previewIndex,
+            onDismiss = { previewIndex = -1 }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ImagePreviewDialog(
+    urls: List<String>,
+    initialIndex: Int,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true)
+    ) {
+        var currentPage by remember { mutableIntStateOf(initialIndex) }
+        val pagerState = rememberPagerState(pageCount = { urls.size }, initialPage = { initialIndex })
+
+        LaunchedEffect(pagerState.currentPage) {
+            currentPage = pagerState.currentPage
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) { page ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = urls[page],
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+                    // 底部指示器
+                    if (urls.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            urls.forEachIndexed { idx, _ ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            color = if (idx == currentPage) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.3f),
+                                            shape = CircleShape
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+                // 关闭按钮
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "关闭",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }

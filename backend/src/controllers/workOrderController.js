@@ -655,18 +655,56 @@ async function getWorkOrder(req, res) {
 
   result.logs = logs
 
-  // 附加表单字段配置（用于移动端渲染中文标签）
+  // 附加表单字段配置 + 已解析的值（用于移动端动态渲染）
   try {
     const { FormConfig } = require('../models')
     const formConfigs = await FormConfig.findAll({
       where: { tenant_id: tenantId || (req.user.tenant_id), form_type: 'work_order_create' },
       order: [['sort_order', 'ASC']],
-      attributes: ['field_key', 'field_label', 'field_type'],
+      attributes: ['field_key', 'field_label', 'field_type', 'required', 'placeholder', 'options'],
       raw: true,
     })
     result.form_fields = formConfigs
+
+    // 解析 custom_data（已在上文解析过，这里复用）
+    const cd = result.custom_data && typeof result.custom_data === 'object' ? result.custom_data : {}
+
+    // 字段值解析映射：field_key → 实际数据来源
+    const valueResolvers = {
+      // work_orders 表字段
+      title: () => workOrder.title,
+      activity_name: () => workOrder.activity_name,
+      description: () => workOrder.description,
+      deadline: () => workOrder.deadline,
+      // wo_declarations 表字段
+      address: () => workOrder['declaration.full_address'],
+      contact_name: () => workOrder['declaration.contact_name'],
+      contact_phone: () => workOrder['declaration.contact_phone'],
+      project_type: () => workOrder['declaration.project_type'],
+      client_id: () => workOrder['client.name'],
+      // custom_data JSON 字段
+    }
+
+    result.form_values = formConfigs.map(cfg => {
+      const resolver = valueResolvers[cfg.field_key]
+      let value = null
+      if (resolver) {
+        value = resolver()
+      } else if (cd[cfg.field_key] !== undefined) {
+        value = cd[cfg.field_key]
+      }
+      return {
+        field_key: cfg.field_key,
+        field_label: cfg.field_label,
+        field_type: cfg.field_type,
+        required: cfg.required,
+        placeholder: cfg.placeholder,
+        value: value ?? null,
+      }
+    })
   } catch {
     result.form_fields = []
+    result.form_values = []
   }
 
   return success(res, result)
