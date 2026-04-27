@@ -474,6 +474,12 @@ async function getWorkOrder(req, res) {
   result.contact_name = workOrder['declaration.contact_name'] || null
   result.contact_phone = workOrder['declaration.contact_phone'] || null
 
+  // 申报照片和附件
+  const rawPhotos = workOrder['declaration.photos']
+  result.photos = Array.isArray(rawPhotos) ? rawPhotos : ((typeof rawPhotos === 'string') ? JSON.parse(rawPhotos || '[]') : [])
+  const rawAttachments = workOrder['declaration.attachments']
+  result.attachments = Array.isArray(rawAttachments) ? rawAttachments : ((typeof rawAttachments === 'string') ? JSON.parse(rawAttachments || '[]') : [])
+
   // 审批
   if (workOrder['approval.id']) {
     result.approval = {
