@@ -390,7 +390,11 @@ private fun WorkOrderContent(
 @Composable
 private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder) {
     // 表单字段映射：field_key → (label, type)
-    val formFieldMap = workOrder.formFields?.associate { it.fieldKey to it.fieldLabel to it.fieldType } ?: emptyMap()
+    val formFieldMap = buildMap<String, Pair<String, String>> {
+        workOrder.formFields?.forEach { f ->
+            put(f.fieldKey, f.fieldLabel to f.fieldType)
+        }
+    }
 
     val items = listOfNotNull(
         "甲方企业" to (workOrder.clientName ?: "-"),
