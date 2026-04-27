@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,7 +43,7 @@ class WebSocketManager(private val preferencesStore: PreferencesStore) {
 
     private val _newNotification = MutableSharedFlow<PushNotification>(
         extraBufferCapacity = 5,
-        onBufferOverflow = kotlinx.coroutines.flow.BufferOverflow.DROP_OLDEST
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val newNotification: SharedFlow<PushNotification> = _newNotification.asSharedFlow()
 
