@@ -13,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.banghe.measure.core.App
 import com.banghe.measure.core.theme.*
 import com.banghe.measure.presentation.components.StageItem
@@ -387,6 +389,9 @@ private fun WorkOrderContent(
 
 @Composable
 private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder) {
+    // 表单字段映射：field_key → (label, type)
+    val formFieldMap = workOrder.formFields?.associate { it.fieldKey to it.fieldLabel to it.fieldType } ?: emptyMap()
+
     val items = listOfNotNull(
         "甲方企业" to (workOrder.clientName ?: "-"),
         "店铺名字" to workOrder.title,
@@ -415,49 +420,103 @@ private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder
         Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // 自定义表单字段（动态渲染 custom_data 中的非空字段）
+    // 自定义表单字段（按表单配置顺序渲染）
     workOrder.customData?.let { customData ->
-        val customItems = customData.mapNotNull { (key, value) ->
-            val label = keyToLabel(key)
-            val displayValue = formatCustomValue(value)
-            if (displayValue != null) label to displayValue else null
+        val customEntries = mutableListOf<Triple<String, String, Any?>>()
+        val remaining = customData.toMutableMap()
+
+        // 先按表单配置的顺序渲染
+        workOrder.formFields?.forEach { field ->
+            remaining[field.fieldKey]?.let { value ->
+                if (value != null) {
+                    customEntries.add(Triple(field.fieldKey, field.fieldLabel, value))
+                    remaining.remove(field.fieldKey)
+                }
+            }
         }
-        if (customItems.isNotEmpty()) {
+        // 再渲染未在配置中的字段
+        remaining.forEach { (key, value) ->
+            if (value != null) {
+                customEntries.add(Triple(key, key.replace("_", ""), value))
+            }
+        }
+
+        if (customEntries.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            customItems.chunked(2).forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    row.forEach { (label, value) ->
-                        GridItem(label, value, modifier = Modifier.weight(1f))
-                    }
-                    if (row.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
+
+            customEntries.forEach { (key, label, value) ->
+                val type = formFieldMap[key]?.second ?: ""
+                when {
+                    type == "image" && value is List<*> && value.isNotEmpty() ->
+                        ImageFieldRow(label, value.filterIsInstance<String>(), modifier = Modifier.fillMaxWidth())
+                    else -> {
+                        val displayValue = formatCustomValue(value)
+                        if (displayValue != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                GridItem(label, displayValue, modifier = Modifier.weight(1f))
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }
 }
 
-private fun keyToLabel(key: String): String {
-    val map = mapOf(
-        "store_name" to "店铺名字", "activity_name" to "活动项目",
-        "project_type" to "元素类型", "deadline" to "截止时间",
-        "store_front_photo" to "店铺门头照", "store_photo" to "店铺门头照",
-        "door_photo" to "店铺门头照", "storefront_photo" to "店铺门头照"
-    )
-    return map[key] ?: key.replace("_", "")
+@Composable
+private fun ImageFieldRow(
+    label: String,
+    urls: List<String>,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextMuted
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            urls.take(4).forEach { url ->
+                Card(
+                    modifier = Modifier.size(64.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    coil.compose.AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                }
+            }
+            if (urls.size > 4) {
+                Box(
+                    modifier = Modifier.size(64.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+${urls.size - 4}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextMuted
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun formatCustomValue(value: Any?): String? {
     return when (value) {
         null, "" -> null
-        is List<*> -> if (value.isEmpty()) null else "${value.size} 张照片"
+        is List<*> -> if (value.isEmpty()) null else value.joinToString(", ")
         is String -> value
         else -> value.toString()
     }

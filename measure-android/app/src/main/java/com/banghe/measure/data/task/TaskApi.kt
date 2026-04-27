@@ -92,7 +92,14 @@ data class WorkOrderDetailResponse(
     val finance_summary: FinanceSummaryInfo?,
     val logs: List<WorkOrderLogInfo>?,
     val remarks: List<Map<String, Any?>>?,
-    val custom_data: Map<String, Any?>?
+    val custom_data: Map<String, Any?>?,
+    val form_fields: List<FormFieldMeta>?
+)
+
+data class FormFieldMeta(
+    val field_key: String,
+    val field_label: String,
+    val field_type: String
 )
 
 data class ClientInfo(
@@ -226,8 +233,14 @@ fun WorkOrderDetailResponse.toDomain(): WorkOrder {
         // 备注
         remarks = remarks,
         // 自定义表单
-        customData = custom_data
+        customData = custom_data,
+        // 表单字段元数据
+        formFields = form_fields?.map { it.toDomainFormField() }
     )
+}
+
+fun FormFieldMeta.toDomainFormField(): com.banghe.measure.domain.model.FormFieldMeta {
+    return com.banghe.measure.domain.model.FormFieldMeta(field_key, field_label, field_type)
 }
 
 fun ApprovalInfo.toDomainApproval(): com.banghe.measure.domain.model.ApprovalInfo {

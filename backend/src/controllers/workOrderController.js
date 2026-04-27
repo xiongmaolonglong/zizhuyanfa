@@ -655,6 +655,20 @@ async function getWorkOrder(req, res) {
 
   result.logs = logs
 
+  // 附加表单字段配置（用于移动端渲染中文标签）
+  try {
+    const { FormConfig } = require('../models')
+    const formConfigs = await FormConfig.findAll({
+      where: { tenant_id: tenantId || (req.user.tenant_id), form_type: 'work_order_create' },
+      order: [['sort_order', 'ASC']],
+      attributes: ['field_key', 'field_label', 'field_type'],
+      raw: true,
+    })
+    result.form_fields = formConfigs
+  } catch {
+    result.form_fields = []
+  }
+
   return success(res, result)
 }
 

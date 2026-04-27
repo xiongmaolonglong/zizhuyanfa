@@ -57,7 +57,15 @@ data class WorkOrder(
     // 备注
     @Json(name = "remarks") val remarks: List<Map<String, Any?>>? = null,
     // 自定义表单数据（动态字段）
-    @Json(name = "custom_data") val customData: Map<String, Any?>? = null
+    @Json(name = "custom_data") val customData: Map<String, Any?>? = null,
+    // 表单字段元数据（key → label 映射）
+    @Json(name = "form_fields") val formFields: List<FormFieldMeta>? = null
+)
+
+data class FormFieldMeta(
+    val fieldKey: String,
+    val fieldLabel: String,
+    val fieldType: String
 )
 
 @JsonClass(generateAdapter = true)
