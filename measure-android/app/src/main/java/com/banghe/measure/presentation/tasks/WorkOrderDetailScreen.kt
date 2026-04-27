@@ -391,11 +391,10 @@ private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder
         "甲方企业" to (workOrder.clientName ?: "-"),
         "店铺名字" to workOrder.title,
         "活动项目" to (workOrder.projectType ?: "-"),
-        "元素类型" to (workOrder.projectType ?: "-"),
         "项目地址" to (workOrder.address ?: "-"),
-        "需求描述" to (workOrder.contactName ?: "-"),
         "联系人" to (workOrder.contactName ?: "-"),
         "联系电话" to (workOrder.contactPhone ?: "-"),
+        "需求描述" to (workOrder.description ?: "-"),
         "截止时间" to workOrder.deadline?.let { formatDateTime(it) },
         "申报人" to workOrder.creatorName?.let { "由 $it 申报" }
     )
@@ -409,7 +408,6 @@ private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder
             row.forEach { (label, value) ->
                 GridItem(label, value, modifier = Modifier.weight(1f))
             }
-            // 奇数项时填充空白
             if (row.size == 1) {
                 Spacer(modifier = Modifier.weight(1f))
             }
@@ -417,10 +415,51 @@ private fun DeclarationGrid(workOrder: com.banghe.measure.domain.model.WorkOrder
         Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // 照片（如果有）
-    if (workOrder.photos != null && workOrder.photos.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(8.dp))
-        GridItem("店铺门头照", "${workOrder.photos.size} 张照片", modifier = Modifier.fillMaxWidth())
+    // 自定义表单字段（动态渲染 custom_data 中的非空字段）
+    workOrder.customData?.let { customData ->
+        val customItems = customData.mapNotNull { (key, value) ->
+            val label = keyToLabel(key)
+            val displayValue = formatCustomValue(value)
+            if (displayValue != null) label to displayValue else null
+        }
+        if (customItems.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            customItems.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    row.forEach { (label, value) ->
+                        GridItem(label, value, modifier = Modifier.weight(1f))
+                    }
+                    if (row.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+private fun keyToLabel(key: String): String {
+    val map = mapOf(
+        "store_name" to "店铺名字", "activity_name" to "活动项目",
+        "project_type" to "元素类型", "deadline" to "截止时间",
+        "store_front_photo" to "店铺门头照", "store_photo" to "店铺门头照",
+        "door_photo" to "店铺门头照", "storefront_photo" to "店铺门头照"
+    )
+    return map[key] ?: key.replace("_", "")
+}
+
+private fun formatCustomValue(value: Any?): String? {
+    return when (value) {
+        null, "" -> null
+        is List<*> -> if (value.isEmpty()) null else "${value.size} 张照片"
+        is String -> value
+        else -> value.toString()
     }
 }
 

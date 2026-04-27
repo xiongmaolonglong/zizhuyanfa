@@ -55,7 +55,9 @@ data class WorkOrder(
     // 流程记录
     @Json(name = "logs") val logs: List<WorkOrderLog>? = null,
     // 备注
-    @Json(name = "remarks") val remarks: List<Map<String, Any?>>? = null
+    @Json(name = "remarks") val remarks: List<Map<String, Any?>>? = null,
+    // 自定义表单数据（动态字段）
+    @Json(name = "custom_data") val customData: Map<String, Any?>? = null
 )
 
 @JsonClass(generateAdapter = true)

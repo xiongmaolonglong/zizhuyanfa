@@ -91,7 +91,8 @@ data class WorkOrderDetailResponse(
     val constructions: List<ConstructionDetailInfo>?,
     val finance_summary: FinanceSummaryInfo?,
     val logs: List<WorkOrderLogInfo>?,
-    val remarks: List<Map<String, Any?>>?
+    val remarks: List<Map<String, Any?>>?,
+    val custom_data: Map<String, Any?>?
 )
 
 data class ClientInfo(
@@ -223,7 +224,9 @@ fun WorkOrderDetailResponse.toDomain(): WorkOrder {
         // 日志
         logs = logs?.map { it.toDomainLog() },
         // 备注
-        remarks = remarks
+        remarks = remarks,
+        // 自定义表单
+        customData = custom_data
     )
 }
 
